@@ -1,3 +1,4 @@
+// 已停用。上传页不再绘制话题卡，避免把个人二维码合成进大屏照片。
 // 卡片渲染。纯函数，只依赖 ctx 和已解码的图片对象，不碰 DOM，方便单独调试。
 import { FONT, THEME, CARD as C } from './config.js';
 

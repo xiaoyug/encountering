@@ -3,142 +3,228 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MuFriends · 照片墙</title>
+<title>muShenzhen 2026 · 照片墙</title>
 <style>
+  @font-face {
+    font-family: "Chakra Petch";
+    src: url("assets/fonts/ChakraPetch-SemiBold.ttf") format("truetype");
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+  }
+  :root {
+    --field: #FFFFFF;
+    --ink: #212121;
+    --black: #000000;
+    --accent: #DFFF2F;
+    --support: #5456BE;
+    --mist: #5c6564;
+    --paper: #FFFFFF;
+    --space: 28px;
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; overflow: hidden; }
   body {
-    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: #fbfaf5;
-    color: #111;
+    font-family: "IBM Plex Sans SC", "PingFang SC", sans-serif;
+    font-weight: 400;
+    background-color: var(--field);
+    background-image:
+      linear-gradient(to top, rgba(223,255,47,.88), rgba(223,255,47,0) 18%),
+      url("kv-bg.jpg");
+    background-repeat: no-repeat;
+    background-size: auto, cover;
+    background-position: center bottom, center top;
+    color: var(--ink);
     user-select: none;
   }
-  .mono { font-family: "SF Mono", Menlo, "Courier New", monospace; }
+  .mono { font-family: "IBM Plex Sans SC", "PingFang SC", sans-serif; font-weight: 500; }
 
   /* ---- 顶栏 ---- */
   #header {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 30;
     display: flex; align-items: flex-start; justify-content: space-between;
-    padding: 26px 36px 0;
+    padding: var(--space) 36px 0;
     pointer-events: none;
   }
-  #title-block { display: flex; flex-direction: column; gap: 10px; }
-  #event-name {
-    font-size: 64px; font-weight: 900; letter-spacing: -1px;
-    color: #111; line-height: 1;
+  #title-block { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; }
+  .kv-block { background: var(--black); color: var(--accent); border-radius: 0; }
+  #brand-block { padding: 7px; }
+  #event-name { display: none; }
+  #date-block {
+    font-family: "Chakra Petch", "PingFang SC", sans-serif;
+    font-size: 21px; font-weight: 600; letter-spacing: 0.02em;
+    padding: 8px 12px; line-height: 1.25;
+    max-width: min(40rem, calc(100vw - 280px));
+    white-space: pre-line;
+    overflow: hidden;
   }
-  #event-name .ch { display: inline-block; }
-  #slogan-pill {
-    display: none;
-    align-self: flex-start;
-    background: #111; color: #fff;
-    font-size: 18px; letter-spacing: 1px;
-    padding: 8px 18px; border-radius: 999px;
-    transform: rotate(-1.2deg);
+  #logo { width: 68px; min-width: 68px; height: auto; display: block; }
+  #makers-line {
+    margin: 0;
+    background: none;
+    color: var(--ink);
+    font-family: "Chakra Petch", "PingFang SC", sans-serif;
+    font-size: 14px; font-weight: 600; letter-spacing: 0.14em; line-height: 1.2;
   }
-  #logo { width: 150px; height: auto; display: none; }
 
   /* ---- 滚动区 ---- */
   #wall {
-    position: fixed; inset: 0;
+    position: fixed;
+    top: 184px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
     display: flex; flex-direction: column; justify-content: space-evenly;
-    padding-top: 150px; padding-bottom: 12px;
+    padding: 22px 0 20px;
+    overflow: hidden;
+    box-sizing: border-box;
   }
-  .row { overflow: visible; white-space: nowrap; will-change: transform; }
+  .row { overflow: visible; white-space: nowrap; will-change: transform; padding: 12px 0 14px; }
 
-  /* 拍立得贴纸卡片：白边 + 黑描边 + 硬投影 + 微旋转 */
+  /* 两行横滚：方框、硬投影、轻微倾斜。速度和循环沿用原来的照片墙。 */
   .cell {
     display: inline-block; vertical-align: top;
     position: relative;
-    background: #fff;
-    border: 3px solid #111;
+    background: var(--paper);
+    border: 3px solid var(--black);
+    border-radius: 0;
     padding: 8px 8px 10px;
     box-shadow: 7px 7px 0 rgba(17,17,17,.9);
     transform: rotate(var(--tilt, 0deg));
   }
-  .cell img { height: 100%; width: auto; max-width: none; object-fit: cover; display: block; background: #eee; }
+  .cell img {
+    display: block;
+    margin: 0 auto;
+    width: auto;
+    max-width: none;
+    object-fit: contain;
+    object-position: center center;
+    background: #eee;
+  }
+  .cell .cap {
+    font-family: "IBM Plex Sans SC", "PingFang SC", sans-serif;
+    font-weight: 500;
+    font-size: 12.75px;
+    color: var(--ink);
+    display: block;
+    width: 0;
+    min-width: 100%;
+    box-sizing: border-box;
+    margin-top: 6px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .cell .del {
     position: absolute; top: -14px; right: -14px;
-    width: 34px; height: 34px; border-radius: 50%;
-    background: #e23e3e; color: #fff; border: 3px solid #111;
+    width: 34px; height: 34px; border-radius: 0;
+    background: var(--accent); color: var(--black); border: 3px solid var(--black);
     font-size: 17px; font-weight: 700; line-height: 28px; text-align: center;
     cursor: pointer; display: none; z-index: 3;
     box-shadow: 3px 3px 0 rgba(17,17,17,.9);
   }
   body.managing .cell .del { display: block; }
 
-  /* ---- 新照片弹窗：大拍立得 + 黄色胶带 ---- */
+  /* Solid card. The dim layer is only the backdrop, not the type. */
   #popup {
     position: fixed; inset: 0; z-index: 50;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(251,250,245,.72);
+    background: rgba(33,33,33,.55);
     opacity: 0; pointer-events: none;
     transition: opacity .3s ease;
   }
   #popup.show { opacity: 1; }
+  #popup.review { pointer-events: auto; }
+  body.demo .cell { cursor: pointer; }
   #popup-card {
     position: relative;
-    background: #fff; border: 4px solid #111;
-    padding: 20px 20px 26px;
-    max-width: 58vw; text-align: center;
-    box-shadow: 14px 14px 0 rgba(17,17,17,.9);
-    transform: scale(.8) rotate(-2deg);
+    background-color: #FFFFFF;
+    border: 4px solid #000000;
+    border-radius: 0;
+    padding: 16px 16px 20px;
+    max-width: min(640px, 70vw);
+    max-height: 78vh;
+    overflow: auto;
+    text-align: center;
+    box-shadow: none;
+    transform: scale(.8);
     transition: transform .35s cubic-bezier(.2,1.5,.4,1);
   }
-  #popup.show #popup-card { transform: scale(1) rotate(-2deg); }
-  #popup-card::before {
-    content: ""; position: absolute; top: -18px; left: 50%;
-    width: 130px; height: 34px; margin-left: -65px;
-    background: rgba(247,215,8,.85);
-    border: 2px solid rgba(17,17,17,.25);
-    transform: rotate(-1.5deg);
+  #popup.show #popup-card { transform: scale(1); }
+  #popup-close {
+    position: absolute; top: 8px; right: 8px;
+    width: 44px; height: 44px;
+    border: 1px solid #212121; border-radius: 0;
+    background: #FFFFFF; color: #212121;
+    font: inherit; font-size: 22px; line-height: 44px;
+    cursor: pointer;
   }
+  #popup-close:focus-visible { outline: 2px solid #212121; outline-offset: 2px; }
   #popup-card img {
-    max-width: 100%; max-height: 60vh;
+    max-width: 100%;
+    max-height: min(52vh, calc(78vh - 150px));
+    object-fit: contain;
     display: block; margin: 0 auto;
-    border: 3px solid #111;
+    background: #FFFFFF;
+    border: 1px solid #212121;
   }
   #popup-nick {
     display: inline-block; margin-top: 16px;
-    background: #111; color: #fff;
-    font-size: 22px; letter-spacing: 1px;
-    padding: 6px 16px; border-radius: 999px;
-    transform: rotate(-.8deg);
+    background: #000000; color: #DFFF2F;
+    font-size: 22px; font-weight: 700; letter-spacing: 0;
+    padding: 8px 14px; border-radius: 0;
   }
   #popup-nick:empty { display: none; }
   #popup-msg {
-    font-size: 22px; font-weight: 700; color: #111;
-    margin-top: 10px; line-height: 1.5;
-    max-width: 52vw; word-break: break-word; white-space: pre-wrap;
+    font-size: 22px; font-weight: 700; color: #212121;
+    background: #FFFFFF;
+    margin-top: 16px; line-height: 1.4;
+    max-width: 100%; word-break: break-word; white-space: pre-wrap;
   }
   #popup-msg:empty { display: none; }
+  @media (max-width: 520px) {
+    #popup-card { max-width: calc(100vw - 24px); max-height: 88vh; }
+    #popup-card img { max-height: 58vh; }
+  }
 
   /* ---- 右下角上传二维码 ---- */
   #qr-box {
     position: fixed; right: 26px; bottom: 26px; z-index: 20;
-    background: #fff; border: 3px solid #111; border-radius: 4px;
-    padding: 12px 12px 8px; text-align: center; display: none;
-    box-shadow: 6px 6px 0 rgba(17,17,17,.9);
-    transform: rotate(1.2deg);
+    background: var(--black); border: 0; border-radius: 0;
+    padding: 12px; text-align: center; display: none;
+    box-shadow: none;
   }
-  #qr-box .tip { color: #111; font-size: 14px; font-weight: 700; margin-top: 8px; letter-spacing: 1px; }
+  #qr { background: var(--paper); padding: 8px; }
+  #qr-box .tip { color: var(--accent); font-size: 14px; font-weight: 500; margin-top: 8px; letter-spacing: 0; }
 
   /* ---- 空场提示 ---- */
   #empty {
     position: fixed; inset: 0; z-index: 5;
     display: none; align-items: center; justify-content: center;
-    flex-direction: column; gap: 18px; color: #111;
+    flex-direction: column; gap: 18px; color: var(--ink);
   }
   #empty .ring {
-    width: 150px; height: 150px; border-radius: 50%;
-    border: 4px dashed #111;
+    width: 150px; height: 150px; border-radius: 0;
+    border: 4px solid var(--black);
     display: flex; align-items: center; justify-content: center;
     font-size: 56px;
     animation: spin 14s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-  #empty .big { font-size: 34px; font-weight: 900; }
-  #empty .small { font-size: 17px; letter-spacing: 1px; color: #555; }
+  #empty .big {
+    font-family: "IBM Plex Sans SC", "PingFang SC", sans-serif;
+    font-size: 34px;
+    font-weight: 600;
+  }
+  #empty .small {
+    font-family: "IBM Plex Sans SC", "PingFang SC", sans-serif;
+    font-size: 17px;
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--ink);
+  }
 
   /* ---- 装饰：漂浮的星号 ---- */
   .spark {
@@ -148,63 +234,92 @@
 
   /* ---- 管理提示条 ---- */
   #mgr-bar {
-    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) rotate(-.6deg);
-    z-index: 40; background: #111; color: #fff;
-    padding: 10px 22px; border-radius: 999px; font-size: 15px;
+    position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+    z-index: 40; background: var(--black); color: var(--accent);
+    padding: 10px 22px; border-radius: 0; font-size: 15px;
     display: none;
   }
   body.managing #mgr-bar { display: block; }
 
-  /* ---- 状态灯 ---- */
-  #status {
-    position: fixed; left: 16px; bottom: 16px; z-index: 20;
-    width: 12px; height: 12px; border-radius: 50%;
-    background: #999; border: 2px solid #111; opacity: .8;
+  @font-face {
+    font-family: "IBM Plex Sans SC";
+    src: url("assets/fonts/IBMPlexSansSC-Regular.woff2") format("woff2");
+    font-weight: 400; font-style: normal; font-display: swap;
   }
-  #status.ok { background: #2fa96b; }
-  #status.err { background: #e23e3e; }
+  @font-face {
+    font-family: "IBM Plex Sans SC";
+    src: url("assets/fonts/IBMPlexSansSC-Medium.woff2") format("woff2");
+    font-weight: 500; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: "IBM Plex Sans SC";
+    src: url("assets/fonts/IBMPlexSansSC-SemiBold.woff2") format("woff2");
+    font-weight: 600; font-style: normal; font-display: swap;
+  }
+  @media (max-width: 520px) {
+    #header { padding: 12px 12px 0; }
+    #logo { width: 96px; min-width: 96px; }
+    #brand-block { padding: 6px; }
+    #date-block { max-width: calc(100vw - 28px); font-size: 15px; }
+    #makers-line { font-size: 11px; letter-spacing: 0.05em; }
+    #wall { top: 188px; left: 0; right: 0; bottom: 0; padding: 12px 0 10px; }
+    #qr-box { right: 8px; bottom: 8px; padding: 6px; }
+    #qr canvas, #qr img { width: 76px !important; height: 76px !important; }
+    #qr-box .tip { font-size: 12px; }
+  }
+
+  /* ---- 状态灯 ---- */
+  /* Hidden unless the connection fails, so the corner is not a stray square. */
+  #status {
+    position: fixed; right: 36px; bottom: 200px; z-index: 40;
+    width: 14px; height: 14px; border-radius: 0;
+    display: none;
+    background: var(--support); border: 2px solid var(--black);
+  }
+  #status.err { display: block; }
 
   /* ---- 活动索引页 ---- */
   #index {
     position: fixed; inset: 0; z-index: 30;
     display: none; flex-direction: column; align-items: center;
     padding: 15vh 24px 40px; overflow-y: auto;
-    background: #fbfaf5;
+    background: var(--field);
+    background-image: none;
   }
-  #index h2 { font-size: 42px; font-weight: 900; letter-spacing: -1px; }
-  #index .idx-sub { font-size: 15px; color: #555; margin: 10px 0 42px; letter-spacing: 2px; }
+  #index h2 { font-size: 42px; font-weight: 600; letter-spacing: 0; font-family: "IBM Plex Sans SC", "PingFang SC", sans-serif; }
+  #index .idx-sub { font-size: 15px; color: var(--mist); margin: 10px 0 42px; letter-spacing: 2px; }
   #index-list { display: flex; flex-wrap: wrap; gap: 22px; justify-content: center; max-width: 1100px; }
   .idx-card {
     display: block; width: 300px; padding: 22px 24px;
-    background: #fff; border: 3px solid #111; text-decoration: none; color: #111;
-    box-shadow: 6px 6px 0 rgba(17,17,17,.9);
-    transform: rotate(-.8deg); transition: transform .15s ease;
+    background: var(--paper); border: 1px solid var(--ink); text-decoration: none; color: var(--ink);
+    box-shadow: none;
+    border-radius: 0;
   }
-  .idx-card:nth-child(2n) { transform: rotate(1deg); }
-  .idx-card:hover { transform: rotate(0) translateY(-4px); background: #f9f463; }
+  .idx-card:hover { background: var(--black); color: var(--accent); }
   .idx-name { font-size: 24px; font-weight: 800; word-break: break-word; }
-  .idx-meta { font-size: 13px; color: #555; margin-top: 10px; }
-  .idx-empty { font-size: 18px; color: #555; padding: 30px; }
-  #index .idx-tip { margin-top: 48px; font-size: 14px; color: #555; text-align: center; line-height: 1.8; }
+  .idx-meta { font-size: 13px; color: var(--mist); margin-top: 10px; }
+  .idx-card:hover .idx-meta { color: var(--accent); }
+  .idx-empty { font-size: 18px; color: var(--mist); padding: 30px; }
+  #index .idx-tip { margin-top: 48px; font-size: 14px; color: var(--mist); text-align: center; line-height: 1.8; }
 
   /* ---- 管理模式：活动编辑 ---- */
   #event-editor {
-    position: fixed; left: 50%; bottom: 74px; transform: translateX(-50%) rotate(.4deg);
-    z-index: 40; background: #fff; border: 3px solid #111;
-    box-shadow: 6px 6px 0 rgba(17,17,17,.9);
+    position: fixed; left: 50%; bottom: 74px; transform: translateX(-50%);
+    z-index: 40; background: var(--paper); border: 1px solid var(--ink);
+    box-shadow: none;
     padding: 16px 20px; display: none; gap: 8px;
-    font-size: 14px; color: #111;
+    font-size: 14px; color: var(--ink); border-radius: 0;
   }
   body.managing #event-editor[data-active] { display: block; }
   #event-editor .ee-title { font-weight: 800; margin-bottom: 8px; }
   #event-editor label { display: block; margin-bottom: 8px; font-weight: 600; }
   #event-editor input {
     width: 260px; margin-left: 8px; padding: 5px 8px;
-    border: 2px solid #111; font: inherit;
+    border: 2px solid var(--ink); font: inherit; background: var(--paper); color: var(--ink);
   }
   #event-editor button {
     margin-top: 4px; padding: 7px 18px; font: inherit; font-weight: 700;
-    background: #111; color: #fff; border: 2px solid #111; cursor: pointer;
+    background: var(--accent); color: var(--black); border: 2px solid var(--black); cursor: pointer;
   }
 </style>
 </head>
@@ -212,10 +327,13 @@
 
 <div id="header">
   <div id="title-block">
-    <div id="event-name"></div>
-    <div id="slogan-pill" class="mono"></div>
+    <div id="brand-block" class="kv-block">
+      <img id="logo" alt="mushenzhen" width="400" height="150">
+      <div id="event-name"></div>
+    </div>
+    <div id="date-block" class="kv-block"></div>
+    <p id="makers-line">A — CITY — FOR — MAKERS</p>
   </div>
-  <img id="logo" alt="mu shenzhen">
 </div>
 
 <div id="wall"></div>
@@ -223,12 +341,13 @@
 <div id="empty">
   <div class="ring">📷</div>
   <div class="big">等待第一张照片</div>
-  <div class="big" style="font-size:22px; font-weight:700;">Waiting for the first photo</div>
-  <div class="small mono">扫码上传 · scan the QR code —— 照片会实时滚进来 · photos roll in live</div>
+  <div class="big">Waiting for the first photo</div>
+  <div class="small">扫码上传 · scan the QR code —— 照片会实时滚进来 · photos roll in live</div>
 </div>
 
 <div id="popup">
   <div id="popup-card">
+    <button type="button" id="popup-close" aria-label="关闭 / Close">✕</button>
     <img id="popup-img" alt="">
     <div><span id="popup-nick" class="mono"></span></div>
     <div id="popup-msg"></div>
@@ -242,7 +361,7 @@
 </div>
 
 <div id="index">
-  <h2>照片墙 · Paper Wall</h2>
+  <h2>mushenzhen · 照片墙</h2>
   <p class="idx-sub mono">活动索引 · All events</p>
   <div id="index-list"></div>
   <p class="idx-tip">开新活动：直接访问 ?e=活动名，自动建档 · New event: just open ?e=your-event</p>
@@ -260,8 +379,8 @@
 <div id="status"></div>
 
 <script src="vendor/qrcode.min.js"></script>
-<script src="logo-data.js"></script>
 <script src="config.js"></script>
-<script src="app.js"></script>
+<script type="module" src="schedule.mjs"></script>
+<script src="app.js" defer></script>
 </body>
 </html>

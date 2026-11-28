@@ -14,26 +14,66 @@
   })();
   if (EVENT_SLUG) $("event-editor").dataset.active = "1";   // 活动编辑表单只在活动页的管理模式出现
 
-  // ---------- 顶栏：活动名（逐字微旋转，海报感）+ 标语胶囊 + Logo ----------
-  var tilts = [-2.5, 1.8, -1.2, 2.2, -1.8, 1.4, -2, 2.6, -1.5, 1.9];
-  function renderEventName(name) {
-    var nameEl = $("event-name");
-    nameEl.innerHTML = "";
-    name.split("").forEach(function (ch, i) {
-      var s = document.createElement("span");
-      s.className = "ch";
-      s.textContent = ch;
-      s.style.transform = "rotate(" + tilts[i % tilts.length] + "deg) translateY(" + ((i % 2) ? -3 : 2) + "px)";
-      nameEl.appendChild(s);
-    });
+  // ---------- 顶栏：活动名 + 日期场地 + 官方 logo ----------
+  // Black block under the logo. A live schedule can pass a name later.
+  // Empty, or a name that is only the slug, falls back to the config event.
+  function currentEventName(name) {
+    var text = name ? String(name).trim() : "";
+    if (!text) return CFG.eventName || "muShenzhen 2026";
+    return text;
+  }
+  var scheduleApplied = false;
+  function setEventTitle(text) {
+    var block = $("date-block");
+    var raw = text || "";
+    var cut = raw.indexOf(" / ");
+    var shown = cut === -1 ? raw : raw.slice(0, cut) + "\n" + raw.slice(cut + 3);
+    if (Array.from(shown).length > 180) shown = Array.from(shown).slice(0, 180).join("") + "…";
+    block.textContent = shown;
+    block.title = raw;
+  }
+  function renderCurrentEventName(name) {
+    if (scheduleApplied) return;
+    setEventTitle(currentEventName(name));
+  }
+  function showScheduleTitle(title) {
+    scheduleApplied = true;
+    setEventTitle(title || currentEventName(""));
+  }
+  function loadScheduleName() {
+    var schedule = window.MushenzhenSchedule;
+    if (!schedule) return;
+    var nowValue = "";
+    var match = /[?&]now=([^&]+)/.exec(location.search);
+    if (match) nowValue = decodeURIComponent(match[1]);
+    var nowMs = schedule.parseNowParam(nowValue, Date.now());
+    var live = location.hostname === "mufriends.mushenzhen.xyz";
+    var url = live ? "/events/now?now=" + encodeURIComponent(new Date(nowMs).toISOString()) : "schedule-sample.json";
+    fetch(url).then(function (res) {
+      if (!res.ok) throw new Error("schedule");
+      return res.json();
+    }).then(function (data) {
+      var running = (data && (data.source === "sola" || data.source === "sample"))
+        ? (data.events || [])
+        : schedule.runningAt(schedule.normalizeList(data), nowMs);
+      var current = schedule.chooseCurrent(running);
+      showScheduleTitle(current ? current.title : "");
+    }).catch(function () {});
   }
   function renderSlogan(text) {
     var pill = $("slogan-pill");
+    if (!pill) return;
     if (text) { pill.textContent = text; pill.style.display = "inline-block"; }
     else { pill.style.display = "none"; }
   }
-  renderEventName(CFG.eventName || "照片墙");
-  renderSlogan(CFG.slogan || "");
+  var knownSlug = CFG.eventSlug || "mushenzhen-2026";
+  if (!EVENT_SLUG || EVENT_SLUG === knownSlug) {
+    renderCurrentEventName(CFG.eventName || "照片墙");
+    renderSlogan(CFG.slogan || CFG.eventLine || "");
+  } else {
+    renderCurrentEventName("");
+    renderSlogan("");
+  }
 
   var logoSrc = CFG.logoUrl || window.WALL_LOGO_BLACK || "";
   if (logoSrc) {
@@ -43,18 +83,15 @@
     logo.onerror = function () { logo.style.display = "none"; };
   }
 
-  // ---------- 装饰：漂浮的彩色星号（呼应海报的 ASCII 符号）----------
-  ["✳", "✱", "✳", "✱"].forEach(function (ch, i) {
-    var s = document.createElement("div");
-    s.className = "spark";
-    s.textContent = ch;
-    s.style.color = PALETTE[i * 2 % PALETTE.length];
-    s.style.fontSize = (28 + i * 10) + "px";
-    s.style.left = [46, 88, 8, 70][i] + "vw";
-    s.style.top = [12, 78, 55, 30][i] + "vh";
-    s.style.transform = "rotate(" + (i * 37) + "deg)";
-    document.body.appendChild(s);
-  });
+  // One small accent mark. Not a second logo, and not a grey star.
+  var spark = document.createElement("div");
+  spark.className = "spark";
+  spark.textContent = "✳";
+  spark.style.color = "#DFFF2F";
+  spark.style.fontSize = "16px";
+  spark.style.left = "58%";
+  spark.style.top = "14%";
+  document.body.appendChild(spark);
 
   // ---------- 右下角上传二维码（带活动参数，来宾扫码直达对应活动的上传页）----------
   if (CFG.uploadUrl && window.QRCode) {
@@ -73,29 +110,40 @@
   var wall = $("wall");
   var rowCount = Math.max(2, Math.min(4, CFG.rows || 3));
   var gap = CFG.gap == null ? 26 : CFG.gap;
-  var photoH = CFG.photoHeight > 0
-    ? CFG.photoHeight
-    : Math.floor((window.innerHeight - 220) / rowCount) - gap;
+  var wallBox = wall.getBoundingClientRect();
+  var wallPad = parseFloat(getComputedStyle(wall).paddingTop) + parseFloat(getComputedStyle(wall).paddingBottom);
+  var openH = Math.floor((wallBox.height - wallPad) / rowCount) - gap - 8;
+  var photoH = CFG.photoHeight > 0 ? CFG.photoHeight : Math.max(160, openH);
   var photoW = Math.round(photoH * 4 / 3);
   var cellTiltSeed = 0;
   var innerH = photoH - 18; // 卡片内边距 8 + 10
 
   // 按图片真实比例修正显示宽度（竖版「遇」卡片完整展示，不被裁切）
+  function clipCaption(text) {
+    var chars = Array.from(String(text || "").trim());
+    if (!chars.length) return "";
+    if (chars.length <= 25) return chars.join("");
+    return chars.slice(0, 25).join("") + "…";
+  }
   function fitImg(img) {
     if (img.naturalWidth && img.naturalHeight) {
       var ratio = img.naturalWidth / img.naturalHeight;
-      ratio = Math.max(0.45, Math.min(1.9, ratio)); // 防止极端比例撑爆布局
-      img.style.width = Math.round(innerH * ratio) + "px";
+      ratio = Math.max(0.45, Math.min(7 / 5, ratio));
+      var h = parseFloat(img.style.height) || innerH;
+      var w = Math.round(h * ratio);
+      img.style.width = w + "px";
+      img.style.objectFit = "contain";
     }
   }
 
   function Row(dir) {
     this.el = document.createElement("div");
     this.el.className = "row";
-    this.el.style.height = (photoH + 26) + "px";  // 26 = 白边 + 投影余量
+    this.el.style.height = (photoH + 28) + "px";  // 倾斜和硬投影留位
     this.el.style.paddingLeft = "12px";           // 给左倾卡片留位
     this.dir = dir;
     this.offset = 0;
+    this.origins = [];
     wall.appendChild(this.el);
   }
   Row.prototype.addCell = function (item) {
@@ -106,15 +154,24 @@
     cell.style.marginRight = gap + "px";
     cell.style.setProperty("--tilt", (((cellTiltSeed++ * 37) % 5) - 2) * 0.9 + "deg");
     cell.dataset.pid = item.id;
+    cell.dataset.origin = "1";
 
     // 宽度跟随图片真实比例：竖版「遇」卡片完整展示，不被裁切
+    var caption = clipCaption(item.message);
+    var imgH = caption ? Math.max(40, innerH - 26) : innerH;
     var img = document.createElement("img");
     img.src = item.url;
-    img.alt = item.nickname || "";
-    img.style.width = Math.round(innerH * 4 / 3) + "px"; // 加载前的占位宽度
-    fitImg(img); // 缓存命中时立即修正
+    img.alt = caption;
+    img.style.height = imgH + "px";
+    img.style.width = Math.round(imgH * 4 / 3) + "px";
+    fitImg(img);
     img.addEventListener("load", function () {
       fitImg(img);
+      var copies = self.el.querySelectorAll('[data-clone="1"][data-pid="' + item.id + '"] img');
+      for (var i = 0; i < copies.length; i++) {
+        copies[i].style.width = img.style.width;
+        copies[i].style.height = img.style.height;
+      }
       self.ensureFilled();
     });
     // 加载失败重试 3 次，仍失败则从墙上移除，避免留破图框
@@ -132,6 +189,12 @@
       }
     });
     cell.appendChild(img);
+    if (caption) {
+      var cap = document.createElement("div");
+      cap.className = "cap";
+      cap.textContent = caption;
+      cell.appendChild(cap);
+    }
 
     var del = document.createElement("div");
     del.className = "del";
@@ -140,6 +203,7 @@
     cell.appendChild(del);
 
     this.el.appendChild(cell);
+    this.origins.push(cell);
     this.ensureFilled();
     return cell;
   };
@@ -151,19 +215,22 @@
     return w;
   };
 
-  // 每张照片只出现一次；行内容不足屏宽时，末尾加隐形占位条撑开间距，
-  // 让每张照片都能从一侧完整横穿到另一侧，照片多空隙自动消失
+  // 把这一行的照片重复到至少两倍视口宽，循环时没有空白段。
   Row.prototype.ensureFilled = function () {
-    var old = this.el.querySelector(".spacer");
-    if (old) this.el.removeChild(old);
-    if (!this.el.firstElementChild) return;
-    var need = window.innerWidth + photoH * 2 + gap * 2; // 屏宽 + 两个格子余量
-    var w = this.rowWidth();
-    if (w < need) {
-      var sp = document.createElement("div");
-      sp.className = "spacer";
-      sp.style.cssText = "display:inline-block;width:" + Math.round(need - w) + "px;height:1px;visibility:hidden;";
-      this.el.appendChild(sp);
+    var spacers = this.el.querySelectorAll(".spacer");
+    for (var s = 0; s < spacers.length; s++) spacers[s].parentNode.removeChild(spacers[s]);
+    if (!this.origins.length) return;
+    var need = Math.max(wall.clientWidth, window.innerWidth) * 2;
+    var guard = 0;
+    var n = this.origins.length;
+    while (this.rowWidth() < need && guard < n * 40) {
+      var src = this.origins[guard % n];
+      var copy = src.cloneNode(true);
+      copy.dataset.clone = "1";
+      copy.removeAttribute("data-origin");
+      this.el.appendChild(copy);
+      guard++;
+      if (!src.offsetWidth) break;
     }
   };
 
@@ -192,6 +259,11 @@
   rows.forEach(function (r) { if (r.dir === 1) r.offset = -photoW - gap; });
 
   var lastT = performance.now();
+  document.addEventListener("visibilitychange", function () { lastT = performance.now(); });
+  window.addEventListener("resize", function () {
+    lastT = performance.now();
+    rows.forEach(function (r) { r.ensureFilled(); });
+  });
   (function loop(now) {
     var dt = Math.min(0.05, (now - lastT) / 1000);
     lastT = now;
@@ -220,9 +292,12 @@
       var rowEl = cell.parentNode;
       var rowIdx = rows.findIndex(function (r) { return r.el === rowEl; });
       cell.parentNode.removeChild(cell);
-      if (rowIdx >= 0) counts[rowIdx]--;
+      if (rowIdx >= 0 && cell.dataset.origin === "1") {
+        counts[rowIdx]--;
+        rows[rowIdx].origins = rows[rowIdx].origins.filter(function (origin) { return origin.dataset.pid !== pid; });
+      }
     }
-    rows.forEach(function (r) { r.ensureFilled(); });   // 删除后补齐空缺
+    rows.forEach(function (r) { r.ensureFilled(); });
     if (sb) {
       sb.from("photos").update({ deleted: true }).eq("id", pid)
         .then(function (res) { if (res.error) console.warn("云端删除失败", res.error); });
@@ -306,7 +381,19 @@
         if (ev) { applyEvent(ev); next(); return; }
         var now = new Date();
         var today = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
-        var row = { slug: slug, name: slug, date: today, slogan: "" };
+        var known = slug === (CFG.eventSlug || "mushenzhen-2026");
+        var row = {
+          slug: slug,
+          name: known ? (CFG.eventName || slug) : slug,
+          date: known ? (CFG.eventDate || today) : today,
+          slogan: ""
+        };
+        var host = location.hostname;
+        if (host === "localhost" || host === "127.0.0.1") {
+          applyEvent(row);
+          next();
+          return;
+        }
         sb.from("events").insert(row).then(function (ins) {
           if (ins.error) console.warn("活动自动建档失败（不影响展示）", ins.error);
           applyEvent(row);
@@ -317,8 +404,13 @@
 
   function applyEvent(ev) {
     currentEvent = ev;
-    if (ev.name) renderEventName(ev.name);
-    renderSlogan(ev.slogan || ev.date || "");
+    var known = ev.slug === (CFG.eventSlug || "mushenzhen-2026");
+    var name = ev.name || "";
+    if (!name || name === ev.slug) name = "";
+    renderCurrentEventName(name);
+    var line = ev.slogan || "";
+    if (!line && known) line = CFG.eventLine || "";
+    renderSlogan(line || ev.date || "");
     // 管理模式的活动编辑表单回填
     if ($("ee-name")) {
       $("ee-name").value = ev.name || "";
@@ -393,6 +485,7 @@
         if (items.length === 0) $("empty").style.display = "flex";
         items.forEach(addToWall);
         if (res.data && res.data.length > 0) lastTime = res.data[0].created_at;
+        else if (!lastTime) lastTime = new Date().toISOString();
       });
   }
 
@@ -470,12 +563,76 @@
     }, 12000);
   }
 
+  // ---------- 只读演示：?demo=1 用本地海报，不连云端 ----------
+  function isReadOnlyDemo() {
+    return /[?&]demo=1(?:&|$)/.test(location.search);
+  }
+  function showFixedPopup(item) {
+    $("popup-img").src = item.url;
+    $("popup-nick").textContent = (CFG.showNickname !== false && item.nickname) ? item.nickname : "";
+    $("popup-msg").textContent = (CFG.showMessage !== false && item.message) ? item.message : "";
+    $("popup").classList.add("show", "review");
+    $("popup-close").focus();
+  }
+  function startFixedDemo() {
+    document.body.classList.add("demo");
+    var posters = [
+      { url: "assets/demo/focus.jpg", message: "记录正在创造的项目，把现场的过程留给后来的人再看一眼", nickname: "" },
+      { url: "assets/demo/diary.jpg", message: "", nickname: "@joedoe (Instagram)" },
+      { url: "assets/demo/rewards.jpg", message: "来领取特别奖励", nickname: "@joedoe (Instagram)" },
+      { url: "assets/demo/diary.jpg", message: "", nickname: "" }
+    ];
+    var byId = {};
+    var n = 0;
+    for (var round = 0; round < 3; round++) {
+      for (var s = 0; s < posters.length; s++) {
+        var shot = posters[s];
+        var item = {
+          id: "demo-" + n,
+          url: shot.url,
+          message: shot.message,
+          nickname: shot.nickname
+        };
+        byId[item.id] = item;
+        addToWall(item);
+        n++;
+      }
+    }
+    wall.addEventListener("click", function (e) {
+      var t = e.target;
+      if (t.classList && t.classList.contains("del")) return;
+      while (t && t !== wall && !(t.classList && t.classList.contains("cell"))) t = t.parentNode;
+      if (!t || t === wall) return;
+      var item = byId[t.dataset.pid];
+      if (item) showFixedPopup(item);
+    });
+    function closeReviewPopup() {
+      $("popup").classList.remove("show", "review");
+    }
+    $("popup").addEventListener("click", function (e) {
+      if (e.target !== $("popup")) return;
+      closeReviewPopup();
+    });
+    $("popup-close").addEventListener("click", function (e) {
+      e.stopPropagation();
+      closeReviewPopup();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") return;
+      if (!$("popup").classList.contains("review")) return;
+      closeReviewPopup();
+    });
+  }
+
   // ---------- 启动 ----------
   // 调试钩子：控制台可手动加照片验证布局
   window.__wall = { add: addToWall, popup: enqueuePopup, remove: removePhoto };
 
   var sbCfg = CFG.supabase || {};
-  if (sbCfg.url && sbCfg.anonKey) {
+  loadScheduleName();
+  if (isReadOnlyDemo()) {
+    startFixedDemo();
+  } else if (sbCfg.url && sbCfg.anonKey) {
     startSupabase(sbCfg);
   } else {
     console.info("[照片墙] 未配置 Supabase，进入 demo 模式");

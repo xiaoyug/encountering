@@ -1,7 +1,7 @@
 {
-  "name": "遇 · Yu / MuFriends",
-  "short_name": "遇 · Yu",
-  "description": "写下你的话题，认识新朋友。 / Share a topic. Make a connection.",
+  "name": "muShenzhen 2026",
+  "short_name": "muShenzhen",
+  "description": "上传一张现场照片。 / Upload an event photo.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

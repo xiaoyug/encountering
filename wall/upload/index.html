@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>muShenzhen 2026 · 上传照片</title>
+<meta name="theme-color" content="#FAFAED">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="muShenzhen 2026">
+<style>
+  /* BL Melody Mono is not in the brand pack and is not used. */
+  @font-face {
+    font-family: "IBM Plex Sans SC";
+    src: url("../assets/fonts/IBMPlexSansSC-Regular.woff2") format("woff2");
+    font-weight: 400; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: "IBM Plex Sans SC";
+    src: url("../assets/fonts/IBMPlexSansSC-Medium.woff2") format("woff2");
+    font-weight: 500; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: "IBM Plex Sans SC";
+    src: url("../assets/fonts/IBMPlexSansSC-SemiBold.woff2") format("woff2");
+    font-weight: 600; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: "Chakra Petch";
+    src: url("../assets/fonts/ChakraPetch-SemiBold.ttf") format("truetype");
+    font-weight: 600; font-style: normal; font-display: swap;
+  }
+  :root {
+    --field: #FAFAED;
+    --paper: #FFFFFF;
+    --ink: #212121;
+    --black: #000000;
+    --accent: #DFFF2F;
+    --card-pad: 16px;
+    --card-gap: 12px;
+  }
+  * { box-sizing: border-box; }
+  #preview-banner[hidden] { display: none; }
+  #preview-banner { margin: 0; padding: 10px 18px; background: #DFFF2F; color: #111; font-size: 13px; font-weight: 700; }
+  html, body { margin: 0; background: var(--field); color: var(--ink); }
+  body {
+    font-family: "IBM Plex Sans SC", "PingFang SC", sans-serif;
+    font-weight: 400;
+    line-height: 1.5;
+    max-width: 520px;
+    margin: 0 auto;
+    padding-bottom: calc(36px + env(safe-area-inset-bottom));
+  }
+  .poster { background: transparent; padding: 28px 28px 10px; text-align: center; }
+  .logo-block {
+    display: inline-block;
+    background: var(--black);
+    padding: 24px;
+  }
+  .logo {
+    display: block;
+    width: min(240px, 100%);
+    min-width: 200px;
+    height: auto;
+    margin: 0 auto;
+  }
+  .hash, .yearline {
+    margin: 26px 0 0;
+    color: var(--ink);
+    font-family: "Chakra Petch", sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+  }
+  .yearline { margin-top: 4px; font-weight: 600; letter-spacing: 0.08em; }
+  .lead { margin: 0; padding: 18px 18px 0; font-size: 15px; color: var(--ink); }
+  main { padding: 8px 18px 0; }
+  .file { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .big, button.send {
+    display: block; width: 100%;
+    margin-top: 16px;
+    padding: 18px 40px;
+    background: var(--accent); color: var(--black);
+    border: 0; border-radius: 0; box-shadow: none;
+    font: inherit; font-size: 16px; font-weight: 500; text-align: center;
+    cursor: pointer;
+  }
+  .big:focus-visible, button.send:focus-visible { outline: 3px solid var(--black); outline-offset: 2px; }
+  input:focus-visible, textarea:focus-visible, select:focus-visible {
+    outline: 3px solid var(--black); outline-offset: 2px;
+  }
+  .big:hover, button.send:hover:not(:disabled) { filter: brightness(0.95); }
+  #preview { display: none; width: auto; max-width: 100%; max-height: 40vh; height: auto; object-fit: contain; margin: 12px auto 0; background: var(--paper); border: 1px solid var(--ink); }
+  #preview.show { display: block; }
+  label.field { display: block; margin-top: 14px; font-size: 15px; font-weight: 600; }
+  label.field span { display: block; margin-top: 2px; font-size: 12px; font-weight: inherit; color: var(--ink); }
+  textarea, input[type="text"], input[type="date"], select {
+    display: block; width: 100%;
+    margin-top: 8px;
+    padding: 12px;
+    font: inherit; font-size: 16px;
+    color: #111; background: #fff;
+    border: 1px solid #BDBDBD; border-radius: 0;
+  }
+  textarea { min-height: 88px; resize: vertical; }
+  #caption-wrap[hidden] { display: none; }
+  .event-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 12.5rem;
+    gap: 12px;
+    margin-top: 18px;
+    padding: 14px;
+    border: 1px solid var(--ink);
+    border-radius: 0;
+    background: var(--paper);
+  }
+  .event-row .field { margin-top: 0; min-width: 0; }
+  #event, #date {
+    box-sizing: border-box;
+    height: 48px;
+    margin-top: 8px;
+    padding: 0 44px 0 12px;
+    border: 1px solid #BDBDBD;
+    border-radius: 0;
+    background-color: #fff;
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 16px 16px;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 46px;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  #event {
+    min-width: 0;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 6l5 5 5-5' fill='none' stroke='%23212121' stroke-width='1.6'/%3E%3C/svg%3E");
+  }
+  #date {
+    min-width: 11.5rem;
+    position: relative;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2' y='3' width='12' height='11' fill='none' stroke='%23212121' stroke-width='1.4'/%3E%3Cpath d='M2 6.5h12M5 2v3M11 2v3' fill='none' stroke='%23212121' stroke-width='1.4'/%3E%3C/svg%3E");
+  }
+  #date::-webkit-calendar-picker-indicator {
+    position: absolute;
+    right: 0;
+    width: 44px;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  @media (max-width: 520px) {
+    .event-row { grid-template-columns: 1fr; }
+  }
+  #status { min-height: 1.4em; margin: 12px 0 0; font-size: 14px; color: var(--ink); }
+  #gate { color: #6B2FD9; font-weight: 500; }
+  .hint { margin: 8px 0 0; font-size: 12px; line-height: 1.45; color: var(--ink); }
+  label.field .hint-plain { font-weight: 400; font-size: 12px; }
+  .card {
+    margin-top: 18px;
+    padding: var(--card-pad);
+    border: 1px solid var(--ink);
+    border-radius: 0;
+    box-shadow: none;
+    background: var(--paper);
+  }
+  .consent input {
+    width: 30px; height: 30px; margin: 0; flex: none;
+    appearance: none; -webkit-appearance: none;
+    border: 1px solid #BDBDBD; border-radius: 0;
+    background: var(--paper);
+    display: grid; place-items: center;
+  }
+  .consent input:checked { background: var(--accent); }
+  .consent input:checked::after {
+    content: "";
+    width: 7px; height: 12px;
+    border: solid var(--black); border-width: 0 2px 2px 0;
+    transform: rotate(45deg); margin-bottom: 3px;
+  }
+  .consent input:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .disclose {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+    text-align: left;
+  }
+  .disclose::before { content: "▼"; }
+  .disclose[aria-expanded="true"]::before { content: "▲"; }
+  #contact-panel[hidden], #photo-actions[hidden], #save-hint[hidden] { display: none; }
+  .photo-actions { display: grid; grid-template-columns: 1fr; gap: var(--card-gap); margin-top: var(--card-gap); }
+  .btn, .disclose {
+    padding: 18px 40px;
+    border: 1px solid var(--black);
+    border-radius: 0;
+    box-shadow: none;
+    background: var(--black);
+    color: var(--paper);
+    font: inherit;
+    font-size: 16px;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+  }
+  .disclose { width: 100%; text-align: left; }
+  .btn:focus-visible, .disclose:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+  .btn:hover { filter: brightness(1.2); }
+  @media (max-width: 520px) {
+    .big, button.send, .btn, .disclose { padding: 12px 24px; }
+    .disclose { padding-left: 0; padding-right: 0; }
+  }
+  #contact-panel { margin-top: var(--card-gap); }
+  .consent {
+    display: flex; gap: 12px; align-items: center;
+    margin-top: 18px; padding: 8px 0; min-height: 44px;
+    font-size: 14px; cursor: pointer;
+  }
+  button.send:disabled { opacity: 0.4; cursor: not-allowed; }
+  #consent-modal {
+    position: fixed; inset: 0; z-index: 80;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(33,33,33,.45);
+    padding: 18px;
+  }
+  #consent-modal[hidden] { display: none; }
+  .modal-card {
+    position: relative;
+    width: min(440px, 100%);
+    background: var(--paper);
+    color: var(--ink);
+    border: 1px solid var(--black);
+    border-radius: 0;
+    padding: 28px 20px 20px;
+  }
+  .modal-card h2 { margin: 0 0 12px; font-size: 18px; font-weight: 600; }
+  .modal-card p { margin: 0; font-size: 14px; font-weight: 400; line-height: 1.5; }
+  .modal-actions { display: grid; gap: 10px; margin-top: 18px; }
+  #consent-agree, #consent-no {
+    width: 100%; margin: 0; padding: 14px 20px;
+    border: 1px solid var(--black); border-radius: 0;
+    font: inherit; font-size: 16px; font-weight: 600; cursor: pointer;
+  }
+  #consent-agree { background: var(--accent); color: var(--black); }
+  #consent-no { background: var(--black); color: var(--paper); }
+  #consent-close {
+    position: absolute; top: 4px; right: 4px;
+    width: 44px; height: 44px;
+    border: 0; background: transparent; color: var(--ink);
+    font: inherit; font-size: 20px; cursor: pointer;
+  }
+  #consent-agree:focus-visible, #consent-no:focus-visible, #consent-close:focus-visible {
+    outline: 3px solid var(--accent); outline-offset: 3px;
+  }
+  footer {
+    margin-top: 32px;
+    padding: 16px 18px 0;
+    border-top: 1px solid var(--ink);
+    text-align: center;
+    color: var(--ink);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<p id="preview-banner" hidden>预览模式：不会把照片写入正式活动。 / Preview only — photos are not sent to the live event.</p>
+<header class="poster">
+  <div class="logo-block">
+    <img class="logo" src="mushenzhen-full-green.svg" alt="mushenzhen" width="400" height="150">
+  </div>
+  <p class="hash">#madeinshenzhen</p>
+  <p class="yearline">2026 / MADE — IN — SHENZHEN</p>
+</header>
+<p class="lead">上传一张现场照片，它会出现在大屏幕上。<br>Upload one event photo. It appears on the big screen.</p>
+<main>
+  <section class="card" id="photo-card" aria-label="照片 / Photo">
+    <img id="preview" alt="照片预览 / Photo preview">
+    <label class="field" id="caption-wrap" for="caption" hidden>一句话（可选）<span>Caption (optional)</span>
+      <textarea id="caption" maxlength="140" placeholder="想写在照片旁边的话 / A short note next to the photo"></textarea>
+    </label>
+    <label class="big" id="pick-label" for="photo">添加照片 / Add a photo</label>
+    <input class="file" id="photo" type="file" accept="image/*">
+    <div class="photo-actions" id="photo-actions" hidden>
+      <button type="button" class="btn" id="save">保存到相册 / Save to album</button>
+      <button type="button" class="btn" id="share">分享 / Post</button>
+    </div>
+    <p class="hint" id="save-hint" hidden>保存会打开系统菜单，请选择“存储图像”。<br>To save, choose “Save Image” in the system menu.</p>
+  </section>
+  <section class="event-row" aria-label="活动 / Event">
+    <label class="field" for="event">活动 <span>Event</span>
+      <select id="event"></select>
+    </label>
+    <label class="field" for="date">日期 <span>Date</span>
+      <input id="date" type="date" lang="en-US">
+    </label>
+  </section>
+  <p class="hint" id="slug-line"></p>
+  <section class="card" aria-label="联系方式 / Contact">
+    <button type="button" class="disclose" id="contact-toggle" aria-expanded="false" aria-controls="contact-panel">联系方式 / Contact</button>
+    <div id="contact-panel" hidden>
+      <p class="hint">留下你的社交媒体账号，让我们有机会联系你或为你的照片署名！<br>Write down your social handles, so that we can contact you or credit your photo.</p>
+      <label class="field" for="contact">小红书 / 微信 / X / Instagram / 邮箱 <span>RedNote / WeChat / X / Instagram / Email</span>
+        <input id="contact" type="text" maxlength="80" autocomplete="off" placeholder="Account ID (platform)">
+      </label>
+    </div>
+  </section>
+  <label class="consent" for="consent">
+    <input id="consent" type="checkbox">
+    <span>上传照片即表示我同意 muShenzhen 在其社交媒体渠道及现场照片墙上展示该照片。<br>By uploading this photo, I give consent for muShenzhen to display it on its social media channels and on the photo wall.</span>
+  </label>
+  <button class="send" id="send" type="button" disabled>上传到照片墙 / Upload to the wall</button>
+  <div id="consent-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="consent-title">
+      <button type="button" id="consent-close" aria-label="关闭 / Close">✕</button>
+      <h2 id="consent-title">上传同意 / Upload consent</h2>
+      <p>上传照片即表示我同意 muShenzhen 在其社交媒体渠道及现场照片墙上展示该照片。<br>By uploading this photo, I give consent for muShenzhen to display it on its social media channels and on the photo wall.</p>
+      <div class="modal-actions">
+        <button type="button" id="consent-agree">同意 / Agree</button>
+        <button type="button" id="consent-no">不同意 / Disagree</button>
+      </div>
+    </div>
+  </div>
+  <p class="hint" id="gate" role="status"></p>
+  <p id="status" role="status" aria-live="polite"></p>
+</main>
+<footer>
+  <span id="offline">muShenzhen 2026</span><br>
+  muShenzhen 2026 · upload v11<br>
+  视觉素材来源：mushenzhen
+</footer>
+<script src="config.js"></script>
+<script type="module" src="../schedule.mjs"></script>
+<script src="app.js" defer></script>
+</body>
+</html>

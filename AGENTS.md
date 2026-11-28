@@ -5,33 +5,33 @@
 
 ## 一句话
 
-活动工具：手机 PWA 做「话题卡」→ 推 Supabase → 大屏 5 秒内弹出并汇入滚动照片墙。多活动复用，`?e=slug` 隔离数据。
+活动工具：手机在同一域名上传一张照片 → 推 Supabase → 大屏约 5 秒内弹出并汇入滚动照片墙。多活动复用，`?e=slug` 隔离数据。muShenzhen 2026 用 `mushenzhen-2026`，不要写进 `mufriends-2026-11-06`。
 
 ## 架构
 
 ```
 手机浏览器                Cloudflare                  Supabase 免费项目
 ┌─────────────┐    ┌──────────────────────┐    ┌────────────────────┐
-│ yu/ 上传页   │──▶ │ mufriends.mushenzhen │──▶ │ Postgres:          │
-│ (PWA 话题卡) │    │ .xyz/proxy/* 反代     │    │  · events 表       │
+│ wall/upload/ │──▶ │ mufriends.mushenzhen │──▶ │ Postgres:          │
+│  /upload/    │    │ .xyz/proxy/* 反代     │    │  · events 表       │
 └─────────────┘    │  (国内直连 supabase   │    │  · photos 表       │
 ┌─────────────┐    │   .co 不稳，故反代)   │    │ Storage:           │
 │ wall/ 大屏   │──▶ │                      │    │  · photos 桶(公开) │
-│ (滚动照片墙) │    │ 静态托管大屏本身      │    └────────────────────┘
+│ (滚动照片墙) │    │ 静态托管大屏和上传页  │    └────────────────────┘
 └─────────────┘    └──────────────────────┘
 ```
 
-- 两端都是**纯静态、无构建、无框架**。上传页是 cache-first PWA（现场没网是常态）
+- 两端都是**纯静态、无构建、无框架**。上传页是 cache-first PWA（`wall/upload/sw.js`）
 - 轮询而非实时订阅：大屏每 5 秒拉一次新照片（简单可靠，量小）
-- 匿名读写：anon key 公开在客户端，RLS 放开。社区活动无机密数据，这是有意取舍
+- 匿名密钥公开在客户端。上场前执行 `sql/mushenzhen-2026-rls.sql`：手机只能插入照片；按 M 只能把 `deleted` 改成 true。M 没有密码，知道大屏地址的人都能隐藏照片
 
 ## 仓库结构
 
 ```
-yu/      上传页 PWA：index.html / app.js / card.js / config.js / sw.js / manifest.webmanifest / assets/
-wall/    大屏：index.html / app.js / config.js / logo-data.js / server.js / worker.js / wrangler.toml
-         / export-photos.py / upload-snippet.js / vendor/ / assets/
-sql/     建库与迁移脚本
+yu/      旧入口，只说明上传页已迁走。不要再把话题卡接到大屏
+wall/    大屏，以及 wall/upload/（index.html / app.js / config.js / sw.js / mushenzhen-full-green.svg）
+         其余：config.js / server.js / worker.js / wrangler.toml / vendor/ / assets/
+sql/     建库、迁移，以及 mushenzhen-2026-rls.sql（上场前人工执行）
 ```
 
 部署镜像（**只读，不直接改**）：
@@ -43,16 +43,11 @@ sql/     建库与迁移脚本
 
 ## 部署流程（关键）
 
-### 改上传页（yu/）
+### 改上传页（wall/upload/）
 
-1. 改代码后**必须 bump `yu/sw.js` 里的 CACHE 版本号**（如 `yu-v15-xxx`），否则用户端旧缓存不更新
-2. 同步到部署镜像：
-   ```bash
-   SHA=$(git subtree split --prefix=yu main)
-   git push git@github.com:xiaoyug/yu.git $SHA:main --force
-   ```
-   （公开镜像历史不连续是常态，必须 force）
-3. 用户端是 cache-first PWA：新版要**连开两次**页面才生效；页脚有版本号（当前 v6），让用户报版本号排查
+1. 改被缓存的文件后**必须 bump `wall/upload/sw.js` 里的 CACHE 版本号**，并同步页脚 `upload vN`（当前 upload v1）
+2. 上传页随大屏一起部署：`cd wall && npx wrangler deploy`。不要把观众指到 `xiaoyug.github.io/yu`
+3. 用户端是 cache-first：新版往往要**连开两次**才生效
 
 ### 改大屏（wall/）
 
@@ -71,9 +66,11 @@ sql/     建库与迁移脚本
 
 - 大屏 URL `?e=slug` 进活动页；slug 不存在时自动在 events 表建档（name=slug、date=当天本地日期）
 - 不带参数的根地址是活动索引页
-- 大屏右下角二维码自动拼接 `?e=slug`，观众扫码直达对应活动的上传页
-- 上传页读 `?e=`：从 events 表预填活动名/日期；推上墙时先 upsert events 再插 photos（带 event 字段）；无参数时按「活动名-日期」slug 化兜底（保 CJK）
-- 大屏按 M 进管理模式：删照片（软删除 deleted=true）+ 编辑活动信息
+- 大屏右下角二维码指向 `uploadUrl`，并带上 `?e=slug`。本场是 `https://mufriends.mushenzhen.xyz/upload/?e=mushenzhen-2026`
+- 上传页只传客人选的照片。说明进 `message`，联系方式默认关；打开后只保存客人输入的文字，进 `nickname`。不上传二维码，不合成卡片
+- 活动名称和日期可改，但照片仍留在 URL 里的那场。无 `?e=` 时用 `mushenzhen-2026`
+- 同意勾选是必填。文案尚未经法务确认
+- 大屏按 M 进管理模式：软删除 + 编辑活动信息。M 没有密码
 
 ## 坑（都踩过）
 
